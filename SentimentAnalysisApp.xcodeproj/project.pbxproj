@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		29A10ADF2E22191E00E7DEBC /* SentimentAnalysis.icon in Resources */ = {isa = PBXBuildFile; fileRef = 29A10ADE2E22191E00E7DEBC /* SentimentAnalysis.icon */; };
+		29A10AE22E22237F00E7DEBC /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 29A10AE12E22237F00E7DEBC /* CoreXLSX */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		29A10A8D2E2050A000E7DEBC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +32,7 @@
 		29A10A7B2E20509E00E7DEBC /* SentimentAnalysisApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SentimentAnalysisApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		29A10A8C2E2050A000E7DEBC /* SentimentAnalysisAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SentimentAnalysisAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		29A10A962E2050A000E7DEBC /* SentimentAnalysisAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SentimentAnalysisAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		29A10ADE2E22191E00E7DEBC /* SentimentAnalysis.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SentimentAnalysis.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -65,6 +71,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				29A10AE22E22237F00E7DEBC /* CoreXLSX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,6 +99,7 @@
 				29A10A8F2E2050A000E7DEBC /* SentimentAnalysisAppTests */,
 				29A10A992E2050A000E7DEBC /* SentimentAnalysisAppUITests */,
 				29A10A7C2E20509E00E7DEBC /* Products */,
+				29A10ADE2E22191E00E7DEBC /* SentimentAnalysis.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -125,6 +133,7 @@
 			);
 			name = SentimentAnalysisApp;
 			packageProductDependencies = (
+				29A10AE12E22237F00E7DEBC /* CoreXLSX */,
 			);
 			productName = SentimentAnalysisApp;
 			productReference = 29A10A7B2E20509E00E7DEBC /* SentimentAnalysisApp.app */;
@@ -208,6 +217,9 @@
 			);
 			mainGroup = 29A10A722E20509E00E7DEBC;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				29A10AE02E22237F00E7DEBC /* XCRemoteSwiftPackageReference "CoreXLSX" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 29A10A7C2E20509E00E7DEBC /* Products */;
 			projectDirPath = "";
@@ -225,6 +237,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				29A10ADF2E22191E00E7DEBC /* SentimentAnalysis.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,8 +298,10 @@
 		29A10AA02E2050A000E7DEBC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = SentimentAnalysis;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = SentimentAnalysis;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = SentimentAnalysisApp/SentimentAnalysisApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -295,6 +310,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SentimentAnalysisApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Sentiment Analyzer";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -314,10 +331,10 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Debug;
@@ -325,8 +342,10 @@
 		29A10AA12E2050A000E7DEBC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = SentimentAnalysis;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = SentimentAnalysis;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = SentimentAnalysisApp/SentimentAnalysisApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -335,6 +354,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SentimentAnalysisApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Sentiment Analyzer";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -354,10 +375,10 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Release;
@@ -608,6 +629,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		29A10AE02E22237F00E7DEBC /* XCRemoteSwiftPackageReference "CoreXLSX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/CoreOffice/CoreXLSX";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.14.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		29A10AE12E22237F00E7DEBC /* CoreXLSX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 29A10AE02E22237F00E7DEBC /* XCRemoteSwiftPackageReference "CoreXLSX" */;
+			productName = CoreXLSX;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 29A10A732E20509E00E7DEBC /* Project object */;
 }
