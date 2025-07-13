@@ -17,10 +17,11 @@ struct WelcomeView: View {
                 .fontWeight(.bold)
                     
                     Text("Analyze the sentiment of arbitrary spreadsheet text using local AI models")
-                .font(.title3)
-                .multilineTextAlignment(.center)
+                        .font(.title3)
+                        .multilineTextAlignment(.center)
                         .foregroundColor(.secondary)
-                .padding(.horizontal)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal)
                 }
                 
                 // Feature highlights
@@ -47,7 +48,7 @@ struct WelcomeView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
             }
-            .frame(maxWidth: 600)
+            .frame(minWidth: 400, maxWidth: 600)
             .padding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -60,7 +61,7 @@ struct FeatureRow: View {
     let description: String
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(alignment: .top, spacing: 16) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(.blue)
@@ -72,12 +73,15 @@ struct FeatureRow: View {
                 Text(description)
                     .font(.body)
                     .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
             }
             
             Spacer()
         }
-        .padding()
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
+                        .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(12)
+                .frame(maxWidth: .infinity)
     }
 } 
