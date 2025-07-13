@@ -23,6 +23,17 @@ struct AnalysisProgressView: View {
                 
                 // Progress section
                 VStack(spacing: 20) {
+                    // File name information
+                    if !viewModel.currentFileName.isEmpty {
+                        HStack {
+                            Image(systemName: "doc.text")
+                                .foregroundColor(.blue)
+                            Text(viewModel.currentFileName)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                    }
                     // Model information
                     if !viewModel.currentModel.isEmpty {
                         HStack {

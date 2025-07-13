@@ -6,5 +6,9 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>CFBundleName</key>
+	<string>Sentiment Analyzer</string>
+	<key>CFBundleDisplayName</key>
+	<string>Sentiment Analyzer</string>
 </dict>
 </plist>

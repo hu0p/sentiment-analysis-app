@@ -26,7 +26,7 @@ struct WelcomeView: View {
                 // Feature highlights
                 VStack(spacing: 20) {
                     FeatureRow(icon: "doc.text.magnifyingglass", title: "Import CSV/XLSX Files", description: "Import your data and select which column to analyze.")
-                    FeatureRow(icon: "brain.head.profile", title: "Local AI Analysis", description: "Process data locally using Ollama models")
+                    FeatureRow(icon: "brain.head.profile", title: "Local, Offline AI Analysis", description: "Process data locally using Ollama models without leaking sensitive data")
                     FeatureRow(icon: "chart.bar.doc.horizontal", title: "Detailed Results", description: "View total comments counts and quantities of \"Positive\", \"Mixed\", \"Negative\", or \"Neutral\" sentiments.")
                     FeatureRow(icon: "square.and.arrow.up", title: "Export Results", description: "Download your analysis as CSV files")
                 }

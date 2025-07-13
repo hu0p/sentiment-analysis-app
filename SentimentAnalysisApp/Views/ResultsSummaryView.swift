@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ResultsSummaryView: View {
-    let results: [SentimentResult]
+    @Binding var results: [SentimentResult]
     var onExport: () -> Void
     var onStartOver: () -> Void
     
@@ -42,17 +42,22 @@ struct ResultsSummaryView: View {
                         
                         Divider()
                         
-                        // Preview section (scrollable)
+                        // All results section (scrollable)
                         VStack(spacing: 16) {
-                            Text("Preview (first 5 results)")
+                            Text("All Results (\(results.count) total)")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
-                            LazyVStack(spacing: 12) {
-                                ForEach(results.prefix(5)) { result in
-                                    ResultRow(result: result)
+                            ScrollView {
+                                LazyVStack(spacing: 12) {
+                                    ForEach($results) { $result in
+                                        EditableResultRow(result: $result)
+                                    }
                                 }
+                                .padding(.bottom, 20)
                             }
+                            .coordinateSpace(name: "scrollView")
+                            .frame(maxHeight: 400)
                         }
                     }
                     
@@ -134,8 +139,8 @@ struct ResultsSummaryView: View {
             
             VStack(spacing: 12) {
                 SentimentBar(label: "Positive", count: positive, total: total, color: .green)
-                SentimentBar(label: "Mixed", count: mixed, total: total, color: .orange)
                 SentimentBar(label: "Negative", count: negative, total: total, color: .red)
+                SentimentBar(label: "Mixed", count: mixed, total: total, color: .orange)
                 SentimentBar(label: "Neutral", count: neutral, total: total, color: .gray)
             }
         }
@@ -242,5 +247,126 @@ struct ResultRow: View {
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
+    }
+}
+
+struct EditableResultRow: View {
+    @Binding var result: SentimentResult
+    @State private var showingSentimentPicker = false
+    
+    private var sentimentColor: Color {
+        switch result.sentiment {
+        case "positive": return .green
+        case "negative": return .red
+        case "mixed": return .orange
+        default: return .gray
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(result.original)
+                .font(.body)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            HStack {
+                Image(systemName: "tag.fill")
+                    .font(.caption)
+                    .foregroundColor(sentimentColor)
+                
+                Text("Sentiment: \(result.sentiment.capitalized)")
+                    .font(.caption)
+                    .foregroundColor(sentimentColor)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button(action: {
+                    showingSentimentPicker = true
+                }) {
+                    Image(systemName: "pencil")
+                        .font(.title3)
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
+                .help("Edit sentiment")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+        .scrollablePopover(isPresented: $showingSentimentPicker) {
+            SentimentPickerView(selectedSentiment: $result.sentiment)
+                .frame(width: 250, height: 250)
+        }
+    }
+}
+
+struct SentimentPickerView: View {
+    @Binding var selectedSentiment: String
+    @Environment(\.dismiss) private var dismiss
+    
+    private let sentiments = ["positive", "negative", "mixed", "neutral"]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Select Sentiment")
+                .font(.headline)
+                .padding(.top, 16)
+            
+            VStack(spacing: 8) {
+                ForEach(sentiments, id: \.self) { sentiment in
+                    HStack {
+                        Image(systemName: sentimentIcon(for: sentiment))
+                            .foregroundColor(sentimentColor(for: sentiment))
+                        Text(sentiment.capitalized)
+                            .foregroundColor(selectedSentiment == sentiment ? .white : .primary)
+                        Spacer()
+                        if selectedSentiment == sentiment {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selectedSentiment == sentiment ? sentimentColor(for: sentiment) : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(sentimentColor(for: sentiment), lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedSentiment = sentiment
+                        dismiss()
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 16)
+        }
+    }
+    
+    private func sentimentColor(for sentiment: String) -> Color {
+        switch sentiment {
+        case "positive": return .green
+        case "negative": return .red
+        case "mixed": return .orange
+        default: return .gray
+        }
+    }
+    
+    private func sentimentIcon(for sentiment: String) -> String {
+        switch sentiment {
+        case "positive": return "face.smiling"
+        case "negative": return "face.dashed"
+        case "mixed": return "face.dashed.fill"
+        default: return "moon"
+        }
     }
 } 

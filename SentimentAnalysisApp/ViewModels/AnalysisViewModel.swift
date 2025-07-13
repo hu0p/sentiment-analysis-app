@@ -4,7 +4,7 @@ import Combine
 struct SentimentResult: Identifiable {
     let id = UUID()
     let original: String
-    let sentiment: String
+    var sentiment: String
 }
 
 class AnalysisViewModel: ObservableObject {
@@ -16,6 +16,7 @@ class AnalysisViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var results: [SentimentResult] = []
     @Published var currentModel: String = ""
+    @Published var currentFileName: String = ""
     
     private var comments: [String] = []
     private var cancellables = Set<AnyCancellable>()
@@ -24,6 +25,11 @@ class AnalysisViewModel: ObservableObject {
     func startAnalysis(fileImportViewModel: FileImportViewModel, model: String) {
         reset()
         currentModel = model
+        if let fileURL = fileImportViewModel.fileURL {
+            currentFileName = fileURL.lastPathComponent
+        } else {
+            currentFileName = ""
+        }
         isAnalyzing = true
         statusMessage = "Extracting data..."
         
@@ -55,6 +61,7 @@ class AnalysisViewModel: ObservableObject {
             for (idx, comment) in comments.enumerated() {
                 if Task.isCancelled { break }
                 let sentiment = await self.analyzeSentiment(comment: comment, model: model)
+                if Task.isCancelled { break }
                 await MainActor.run {
                     self.results.append(SentimentResult(original: comment, sentiment: sentiment))
                     self.progress = Double(idx + 1) / Double(total)
@@ -62,9 +69,15 @@ class AnalysisViewModel: ObservableObject {
                 }
             }
             await MainActor.run {
-                self.isAnalyzing = false
-                self.isComplete = true
-                self.statusMessage = "Analysis complete!"
+                if Task.isCancelled {
+                    self.isAnalyzing = false
+                    self.isComplete = false
+                    self.statusMessage = "Analysis aborted."
+                } else {
+                    self.isAnalyzing = false
+                    self.isComplete = true
+                    self.statusMessage = "Analysis complete!"
+                }
             }
         }
     }
@@ -111,6 +124,7 @@ You are analyzing feedback. Respond with ONLY one word: positive, negative, mixe
         errorMessage = nil
         results = []
         currentModel = ""
+        currentFileName = ""
         comments = []
         task?.cancel()
         task = nil
