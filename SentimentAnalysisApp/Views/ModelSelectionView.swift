@@ -3,6 +3,7 @@ import SwiftUI
 struct ModelSelectionView: View {
     @ObservedObject var ollamaManager: OllamaManager
     @Binding var selectedModel: String
+    @Binding var additionalContext: String
     var onContinue: () -> Void
     var onBack: (() -> Void)? = nil
     @State private var modelSelectionMode: ModelSelectionMode = .existing
@@ -97,26 +98,38 @@ struct ModelSelectionView: View {
                             }
                         }
                     }
-                    .frame(minHeight: 200)
+                    .frame(minHeight: 80)
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(12)
                 } else if modelSelectionMode == .download {
                     VStack(spacing: 12) {
                         if isDownloading {
-                            VStack(spacing: 12) {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .scaleEffect(1.2)
+                            VStack(spacing: 16) {
                                 VStack(spacing: 8) {
                                     Text("Downloading \(downloadingModelName)...")
                                         .font(.headline)
+                                    
+                                    // Progress bar
+                                    ProgressView(value: ollamaManager.downloadProgress)
+                                        .progressViewStyle(.linear)
+                                        .frame(height: 8)
+                                    
+                                    // Status text
                                     Text(downloadStatus)
                                         .font(.body)
                                         .foregroundColor(.secondary)
                                         .multilineTextAlignment(.center)
                                         .padding(.horizontal)
+                                    
+                                    // Progress percentage
+                                    if ollamaManager.downloadProgress > 0 {
+                                        Text("\(Int(ollamaManager.downloadProgress * 100))%")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
+                                
                                 Button("Cancel Download") {
                                     cancelDownload()
                                 }
@@ -190,12 +203,41 @@ struct ModelSelectionView: View {
                             .cornerRadius(12)
                         }
                     }
-                    .frame(minHeight: 200)
+                    .frame(minHeight: 80)
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(12)
                 }
             }
+            
+            // Additional Context Section
+            VStack(spacing: 12) {
+                Text("Additional Context (Optional)")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Provide additional context that will be included in the sentiment analysis prompt. This can help improve the accuracy of the analysis.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.leading)
+                    
+                    TextEditor(text: $additionalContext)
+                        .font(.body)
+                        .frame(minHeight: 60)
+                        .padding(8)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                }
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(12)
+            
             // Continue button
             Button("Continue to File Import") {
                 onContinue()
@@ -204,6 +246,7 @@ struct ModelSelectionView: View {
             .opacity(modelSelectionMode == .download ? 0 : 1)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .padding(.bottom, 20)
         }
         .frame(maxWidth: 600)
         .padding()
@@ -214,7 +257,9 @@ struct ModelSelectionView: View {
         downloadingModelName = newModelName
         downloadStatus = "Starting download..."
         ollamaManager.downloadModel(named: newModelName)
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+        
+        // Monitor download progress
+        downloadTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
             if !ollamaManager.isDownloading {
                 timer.invalidate()
                 DispatchQueue.main.async {

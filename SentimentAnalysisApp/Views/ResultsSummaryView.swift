@@ -6,31 +6,63 @@ struct ResultsSummaryView: View {
     var onStartOver: () -> Void
     
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header with icon
-                    VStack(spacing: 16) {
-                        Image(systemName: "chart.bar.doc.horizontal")
-                            .font(.system(size: 48))
-                            .foregroundColor(.blue)
-                        
-                        Text("Results Summary")
-                            .font(.title)
-                            .fontWeight(.bold)
-                    }
-                    
-                    if results.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "doc.text.magnifyingglass")
-                                .font(.system(size: 32))
-                                .foregroundColor(.secondary)
-                            Text("No results to display.")
-                                .font(.body)
-                                .foregroundColor(.secondary)
+        VStack(spacing: 0) {
+            // Fixed header
+            VStack(spacing: 16) {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.system(size: 48))
+                    .foregroundColor(.blue)
+                
+                Text("Results Summary")
+                    .font(.title)
+                    .fontWeight(.bold)
+                
+                // Action buttons
+                HStack(spacing: 16) {
+                    Button(action: onExport) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.title3)
+                            Text("Export Results")
+                                .font(.title3)
+                                .fontWeight(.semibold)
                         }
-                    } else {
-                        // Summary statistics and sentiment distribution (outside scrollable area)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    
+                    Button(action: onStartOver) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrowshape.turn.up.backward")
+                                .font(.title3)
+                            Text("Reset")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                }
+            }
+            .padding()
+            
+            Divider()
+            
+            // Scrollable content
+            if results.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary)
+                    Text("No results to display.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Summary statistics and sentiment distribution
                         VStack(spacing: 24) {
                             summarySection
                             
@@ -42,54 +74,23 @@ struct ResultsSummaryView: View {
                         
                         Divider()
                         
-                        // All results section (scrollable)
+                        // All results section
                         VStack(spacing: 16) {
                             Text("All Results (\(results.count) total)")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
-                            ScrollView {
-                                LazyVStack(spacing: 12) {
-                                    ForEach($results) { $result in
-                                        EditableResultRow(result: $result)
-                                    }
+                            LazyVStack(spacing: 12) {
+                                ForEach($results) { $result in
+                                    EditableResultRow(result: $result)
                                 }
-                                .padding(.bottom, 20)
                             }
-                            .coordinateSpace(name: "scrollView")
-                            .frame(maxHeight: 400)
+                            .padding(.bottom, 20)
                         }
+                        .padding(.horizontal)
                     }
-                    
-                    // Action buttons
-                    HStack(spacing: 16) {
-                        Button(action: onExport) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.title3)
-                                Text("Export Results")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        
-                        Button(action: onStartOver) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "arrowshape.turn.up.backward")
-                                    .font(.title3)
-                                Text("Restart")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                    }
+                    .padding(.vertical)
                 }
-                .padding()
-                .frame(minHeight: geometry.size.height)
             }
         }
     }

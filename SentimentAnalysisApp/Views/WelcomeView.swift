@@ -42,11 +42,11 @@ struct WelcomeView: View {
                         Image(systemName: "arrow.right")
                             .font(.title3)
                     }
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 16)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .controlSize(.regular)
             }
             .frame(minWidth: 400, maxWidth: 600)
             .padding()

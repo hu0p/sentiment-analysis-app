@@ -6,7 +6,7 @@ struct SentimentAnalysisApp: App {
     var body: some Scene {
         WindowGroup {
             AppFlowView()
-                .frame(minWidth: 600, minHeight: 775)
+                .frame(minWidth: 600, minHeight: 800)
         }
     }
 }
@@ -38,6 +38,7 @@ struct AppFlowView: View {
     
 
     @State private var selectedModel: String = ""
+    @State private var additionalContext: String = ""
     @State private var isCheckingOllama = false
     @State private var shouldShowOllamaSetup = false
     @State private var ollamaCheckPerformed = false
@@ -65,94 +66,100 @@ struct AppFlowView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Show back header only on steps where back is allowed
-            if viewModel.currentStep == .modelSelection || viewModel.currentStep == .fileImport || viewModel.currentStep == .columnSelection {
-                BackHeaderView(onBack: { viewModel.goToPreviousStep() })
-            }
-            // Main step content
-            ZStack {
-                switch viewModel.currentStep {
-                case .welcome:
-                    WelcomeView(onContinue: {
-                        if !ollamaCheckPerformed {
-                            isCheckingOllama = true
-                            ollamaManager.startSetup()
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                while !ollamaManager.isReady && !ollamaManager.hasError {
-                                    usleep(100_000)
-                                }
-                                DispatchQueue.main.async {
-                                    isCheckingOllama = false
-                                    ollamaCheckPerformed = true
-                                    if ollamaManager.isReady {
-                                        viewModel.currentStep = .modelSelection
-                                    } else {
-                                        shouldShowOllamaSetup = true
-                                        viewModel.currentStep = .ollamaSetup
+            // Main content area with consistent height
+            VStack(spacing: 0) {
+                // Show back header only on steps where back is allowed
+                if viewModel.currentStep == .modelSelection || viewModel.currentStep == .fileImport || viewModel.currentStep == .columnSelection {
+                    BackHeaderView(onBack: { viewModel.goToPreviousStep() })
+                }
+                // Main step content
+                ZStack {
+                    switch viewModel.currentStep {
+                    case .welcome:
+                        WelcomeView(onContinue: {
+                            if !ollamaCheckPerformed {
+                                isCheckingOllama = true
+                                ollamaManager.startSetup()
+                                DispatchQueue.global(qos: .userInitiated).async {
+                                    while !ollamaManager.isReady && !ollamaManager.hasError {
+                                        usleep(100_000)
+                                    }
+                                    DispatchQueue.main.async {
+                                        isCheckingOllama = false
+                                        ollamaCheckPerformed = true
+                                        if ollamaManager.isReady {
+                                            viewModel.currentStep = .modelSelection
+                                        } else {
+                                            shouldShowOllamaSetup = true
+                                            viewModel.currentStep = .ollamaSetup
+                                        }
                                     }
                                 }
+                            } else {
+                                viewModel.currentStep = .modelSelection
                             }
-                        } else {
-                            viewModel.currentStep = .modelSelection
-                        }
-                    })
-                case .ollamaSetup:
-                    if shouldShowOllamaSetup {
-                        OllamaSetupView(ollamaManager: ollamaManager, onContinue: {
-                            shouldShowOllamaSetup = false
-                            viewModel.currentStep = .modelSelection
                         })
+                    case .ollamaSetup:
+                        if shouldShowOllamaSetup {
+                            OllamaSetupView(ollamaManager: ollamaManager, onContinue: {
+                                shouldShowOllamaSetup = false
+                                viewModel.currentStep = .modelSelection
+                            })
+                        }
+                    case .modelSelection:
+                        ModelSelectionView(
+                            ollamaManager: ollamaManager,
+                            selectedModel: $selectedModel,
+                            additionalContext: $additionalContext,
+                            onContinue: { viewModel.goToNextStep() }
+                        )
+                    case .fileImport:
+                        FileImportView(
+                            viewModel: fileImportViewModel,
+                            onContinue: {
+                                viewModel.goToNextStep()
+                            }
+                        )
+                    case .columnSelection:
+                        ColumnSelectionView(
+                            appFlowViewModel: viewModel,
+                            fileImportViewModel: fileImportViewModel,
+                            analysisViewModel: analysisViewModel
+                        )
+                    case .analysisProgress:
+                        AnalysisProgressView(
+                            viewModel: analysisViewModel,
+                            onContinue: { viewModel.goToNextStep() },
+                            onCancel: {
+                                analysisViewModel.reset()
+                                viewModel.currentStep = .columnSelection
+                            }
+                        )
+                        .onAppear {
+                            if analysisViewModel.results.isEmpty {
+                                analysisViewModel.startAnalysis(fileImportViewModel: fileImportViewModel, model: selectedModel, additionalContext: additionalContext)
+                            }
+                        }
+                    case .resultsSummary:
+                        ResultsSummaryView(
+                            results: $analysisViewModel.results,
+                            onExport: exportResults,
+                            onStartOver: resetAll
+                        )
                     }
-                case .modelSelection:
-                    ModelSelectionView(
-                        ollamaManager: ollamaManager,
-                        selectedModel: $selectedModel,
-                        onContinue: { viewModel.goToNextStep() }
-                    )
-                case .fileImport:
-                    FileImportView(
-                        viewModel: fileImportViewModel,
-                        onContinue: {
-                            viewModel.goToNextStep()
-                        }
-                    )
-                case .columnSelection:
-                    ColumnSelectionView(
-                        appFlowViewModel: viewModel,
-                        fileImportViewModel: fileImportViewModel,
-                        analysisViewModel: analysisViewModel
-                    )
-                case .analysisProgress:
-                    AnalysisProgressView(
-                        viewModel: analysisViewModel,
-                        onContinue: { viewModel.goToNextStep() },
-                        onCancel: {
-                            analysisViewModel.reset()
-                            viewModel.currentStep = .columnSelection
-                        }
-                    )
-                    .onAppear {
-                        if analysisViewModel.results.isEmpty {
-                            analysisViewModel.startAnalysis(fileImportViewModel: fileImportViewModel, model: selectedModel)
-                        }
+                    if isCheckingOllama {
+                        Color.black.opacity(0.2).ignoresSafeArea()
+                        ProgressView("Checking Ollama setup...")
+                            .padding()
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(NSColor.windowBackgroundColor)))
+                            .frame(maxWidth: 300)
                     }
-                case .resultsSummary:
-                    ResultsSummaryView(
-                        results: $analysisViewModel.results,
-                        onExport: exportResults,
-                        onStartOver: resetAll
-                    )
                 }
-                if isCheckingOllama {
-                    Color.black.opacity(0.2).ignoresSafeArea()
-                    ProgressView("Checking Ollama setup...")
-                        .padding()
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Color(NSColor.windowBackgroundColor)))
-                        .frame(maxWidth: 300)
-                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Step indicator as footer with pencil icon
+            
+            // Fixed footer - Step indicator
             StepIndicatorView(
                 steps: steps,
                 currentStep: stepIndex(for: viewModel.currentStep),
@@ -232,5 +239,7 @@ struct AppFlowView: View {
         viewModel.resetFlow()
         fileImportViewModel.reset()
         analysisViewModel.reset()
+        selectedModel = ""
+        additionalContext = ""
     }
 } 

@@ -22,7 +22,7 @@ class AnalysisViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var task: Task<Void, Never>? = nil
     
-    func startAnalysis(fileImportViewModel: FileImportViewModel, model: String) {
+    func startAnalysis(fileImportViewModel: FileImportViewModel, model: String, additionalContext: String = "") {
         reset()
         currentModel = model
         if let fileURL = fileImportViewModel.fileURL {
@@ -39,12 +39,12 @@ class AnalysisViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.comments = comments
                 self.statusMessage = "Analyzing \(comments.count) comments..."
-                self.runAnalysis(model: model)
+                self.runAnalysis(model: model, additionalContext: additionalContext)
             }
         }
     }
     
-    private func runAnalysis(model: String) {
+    private func runAnalysis(model: String, additionalContext: String) {
         guard !comments.isEmpty else {
             self.statusMessage = "No comments to analyze."
             self.isAnalyzing = false
@@ -60,7 +60,7 @@ class AnalysisViewModel: ObservableObject {
         task = Task {
             for (idx, comment) in comments.enumerated() {
                 if Task.isCancelled { break }
-                let sentiment = await self.analyzeSentiment(comment: comment, model: model)
+                let sentiment = await self.analyzeSentiment(comment: comment, model: model, additionalContext: additionalContext)
                 if Task.isCancelled { break }
                 await MainActor.run {
                     self.results.append(SentimentResult(original: comment, sentiment: sentiment))
@@ -82,11 +82,13 @@ class AnalysisViewModel: ObservableObject {
         }
     }
     
-    private func analyzeSentiment(comment: String, model: String) async -> String {
+    private func analyzeSentiment(comment: String, model: String, additionalContext: String) async -> String {
         // Call Ollama API (assume localhost:11434, model from parameter)
         guard !comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "neutral" }
+        
+        let contextString = additionalContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : " \(additionalContext)"
         let prompt = """
-You are analyzing feedback. Respond with ONLY one word: positive, negative, mixed, or neutral.\nComment: \"\(comment)\"\nSentiment:
+You are analyzing text sentiment.\(contextString) Respond with ONLY one word: positive, negative, mixed, or neutral.\nComment: \"\(comment)\"\nSentiment:
 """
         let url = URL(string: "http://localhost:11434/api/generate")!
         let payload: [String: Any] = [

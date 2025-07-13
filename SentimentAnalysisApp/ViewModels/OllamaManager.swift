@@ -197,7 +197,8 @@ class OllamaManager: ObservableObject {
             request.httpBody = data
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            let (responseData, response) = try await URLSession.shared.data(for: request)
+            // Use URLSession's dataTaskPublisher for streaming
+            let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
             
             // Check HTTP status code first
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -211,41 +212,68 @@ class OllamaManager: ObservableObject {
                 return false
             }
             
-            // Parse streaming response to check for error messages
-            if let responseString = String(data: responseData, encoding: .utf8) {
-                let lines = responseString.components(separatedBy: .newlines)
-                for line in lines {
-                    let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmedLine.isEmpty else { continue }
+            var hasError = false
+            var isCompleted = false
+            
+            // Process streaming response
+            for try await line in asyncBytes.lines {
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmedLine.isEmpty else { continue }
+                
+                // Try to parse each line as JSON
+                if let lineData = trimmedLine.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] {
                     
-                    // Try to parse each line as JSON
-                    if let lineData = trimmedLine.data(using: .utf8),
-                       let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] {
-                        
-                        // Check for error field
-                        if let error = json["error"] as? String {
-                            print("[OllamaManager] Pull failed with error: \(error)")
-                            return false
-                        }
-                        
-                        // Check for status field that might indicate completion
-                        if let status = json["status"] as? String {
-                            if status == "success" {
-                                print("[OllamaManager] Pull completed successfully")
-                                return true
-                            }
+                    // Update status message
+                    if let status = json["status"] as? String {
+                        await MainActor.run {
+                            self.updateStatus(status)
                         }
                     }
+                    
+                    // Check for error field
+                    if let error = json["error"] as? String {
+                        print("[OllamaManager] Pull failed with error: \(error)")
+                        await MainActor.run {
+                            self.updateError(error)
+                        }
+                        hasError = true
+                        break
+                    }
+                    
+                    // Check for completion
+                    if let status = json["status"] as? String {
+                        if status == "success" {
+                            print("[OllamaManager] Pull completed successfully")
+                            isCompleted = true
+                            break
+                        }
+                    }
+                    
+                    // Update progress if available
+                    if let completed = json["completed"] as? Int,
+                       let total = json["total"] as? Int,
+                       total > 0 {
+                        let progress = Double(completed) / Double(total)
+                        await MainActor.run {
+                            self.updateProgress(progress)
+                        }
+                    }
+                    
+                    // Update download output for detailed logging
+                    await MainActor.run {
+                        self.downloadOutput.append(trimmedLine)
+                    }
                 }
-                
-                // If we get here and no error was found, assume success
-                print("[OllamaManager] Pull completed (no explicit success status)")
-                return true
             }
             
-            return true
+            return !hasError && isCompleted
+            
         } catch {
             print("[OllamaManager] Error pulling model: \(error)")
+            await MainActor.run {
+                self.updateError("Network error: \(error.localizedDescription)")
+            }
             return false
         }
     }
@@ -372,20 +400,20 @@ class OllamaManager: ObservableObject {
                 self.updateStatus("Starting download of \(modelName)...")
             }
             
-            // Use API to pull model
+            // Use API to pull model with streaming progress
             let success = await self.pullModel(named: modelName)
             
             await MainActor.run {
-                self.downloadProgress = 1.0
                 self.isDownloading = false
                 
                 if success {
+                    self.downloadProgress = 1.0
                     self.updateStatus("Model \(modelName) downloaded successfully!")
                     // Refresh available models
                     self.refreshAvailableModels()
                 } else {
-                    // Provide more specific error message
-                    self.updateError("Failed to download model '\(modelName)'. The model may not exist or there may be a network issue. Please check the model name and try again.")
+                    // Error message is already set by pullModel
+                    self.downloadProgress = 0.0
                 }
             }
         }
