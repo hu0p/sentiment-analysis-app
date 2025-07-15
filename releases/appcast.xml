@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>Sentiment Analyzer Updates</title>
-    <link>https://github.com/hu0p/SentimentAnalysisApp/releases/latest</link>
+    <link>https://github.com/hu0p/sentiment-analysis-app/</link>
     <description>Release notes for Sentiment Analyzer</description>
     <language>en</language>
+    <title>Version 1.0</title>
+    <pubDate>Tue, 15 Jul 2025 02:19:01 +0000</pubDate>
     <item>
       <title>Version 1.0.0</title>
-      <sparkle:releaseNotesLink>https://github.com/hu0p/SentimentAnalysisApp/releases/tag/v1.0.0</sparkle:releaseNotesLink>
-      <pubDate>Mon, 14 Jul 2025 17:45:00 +0000</pubDate>
-      <enclosure
-        url="https://github.com/hu0p/SentimentAnalysisApp/releases/download/v1.0.0/SentimentAnalyzer-v1.0.0.dmg"
-        sparkle:version="1.0.0"
-        length="12345678"
-        type="application/octet-stream"
-        sparkle:edSignature="YOUR_SIGNATURE_HERE"/>
+      <pubDate>Tue, 15 Jul 2025 02:43:39 +0000</pubDate>
+      <enclosure url="https://hu0p.github.io/SentimentAnalysisApp/releases/1.0.0/SentimentAnalyzer.dmg" sparkle:version="1.0.0" length="3471499" type="application/x-apple-diskimage" sparkle:edSignature="nNyCG/A22nqSWYvs0M1PU1Q60g7KCV2MWDreAJnpOcnW8GI/HYIG37tp/8aZZ1A26mvfjfkxWhV+oiF6t2w4Bg=="/>
     </item>
   </channel>
 </rss>
