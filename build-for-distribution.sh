@@ -135,9 +135,29 @@ fi
 
 print_status "Export completed successfully"
 
+# --- Extract version from built app's Info.plist (Xcode authoritative source) ---
+INFO_PLIST_PATH="${EXPORT_PATH}/Sentiment Analyzer.app/Contents/Info.plist"
+if [ ! -f "$INFO_PLIST_PATH" ]; then
+  print_error "Info.plist not found at $INFO_PLIST_PATH. Cannot determine version."
+  exit 1
+fi
+VERSION=$(plutil -extract CFBundleShortVersionString xml1 -o - "$INFO_PLIST_PATH" | grep -oE '<string>.*</string>' | sed -E 's/<\/?string>//g' | xargs)
+if [ -z "$VERSION" ]; then
+  print_error "Could not extract version from Info.plist. Aborting."
+  exit 1
+fi
+print_status "App version determined from Info.plist: $VERSION"
+
+# Set release paths now that version is known
+RELEASES_DIR="releases/$VERSION"
+DEST_DMG_PATH="$RELEASES_DIR/SentimentAnalyzer.dmg"
+
 # Create DMG (optional - requires create-dmg)
 if command -v create-dmg &>/dev/null; then
   print_status "Creating DMG installer..."
+  # Remove old DMG if it exists to prevent hdiutil errors
+  rm -f "$DEST_DMG_PATH"
+  mkdir -p "$RELEASES_DIR"
   create-dmg \
     --volname "Sentiment Analyzer" \
     --window-pos 200 120 \
@@ -147,11 +167,57 @@ if command -v create-dmg &>/dev/null; then
     --hide-extension "Sentiment Analyzer.app" \
     --app-drop-link 425 120 \
     --background "dmg_background.png" \
-    "SentimentAnalyzer.dmg" \
+    "$DEST_DMG_PATH" \
     "${EXPORT_PATH}/Sentiment Analyzer.app"
 
-  if [ -f "SentimentAnalyzer.dmg" ]; then
-    print_status "DMG created successfully: SentimentAnalyzer.dmg"
+  if [ -f "$DEST_DMG_PATH" ]; then
+    print_status "DMG created successfully: $DEST_DMG_PATH"
+    # Sparkle signing and appcast update logic follows...
+
+    # --- Sparkle: Sign the DMG and update appcast.xml ---
+    SPARKLE_TOOLS_PATH="/Users/lhoup/Library/Developer/Xcode/DerivedData/SentimentAnalysisApp-gawezplxrvumjsdcmfrvigrzfaew/SourcePackages/artifacts/sparkle/Sparkle/bin"
+    SPARKLE_PRIVKEY="$HOME/.sparkle/ed25519.priv.pem" # Keep your private key OUTSIDE the repo
+    APPCAST="releases/appcast.xml"
+    DMG_FILE="$DEST_DMG_PATH"
+    PUBDATE=$(date -u +"%a, %d %b %Y %H:%M:%S %z")
+    LENGTH=$(stat -f%z "$DMG_FILE")
+    # Update appcast.xml enclosure URL
+    DMG_URL="https://hu0p.github.io/SentimentAnalysisApp/$DEST_DMG_PATH"
+
+    if [ ! -f "$SPARKLE_PRIVKEY" ]; then
+      print_error "Sparkle private key not found at $SPARKLE_PRIVKEY. Skipping update signing."
+    elif [ ! -f "$APPCAST" ]; then
+      print_error "Appcast file not found at $APPCAST. Skipping appcast update."
+    else
+      print_status "Signing DMG with Sparkle..."
+      SPARKLE_SIGNATURE=$($SPARKLE_TOOLS_PATH/sign_update --ed-key-file "$SPARKLE_PRIVKEY" "$DMG_FILE" | sed -n 's/.*sparkle:edSignature=\"\([^"]*\)\".*/\1/p')
+      print_status "Signature: $SPARKLE_SIGNATURE"
+
+      # Remove any existing item for this version
+      if command -v xmlstarlet &>/dev/null; then
+        xmlstarlet ed -L -d "//item[enclosure/@sparkle:version='$VERSION']" "$APPCAST"
+
+        # Remove any empty <item/> or <enclosure/> tags (cleanup from previous runs or template)
+        xmlstarlet ed -L -d "//item[not(node())]" "$APPCAST"
+        xmlstarlet ed -L -d "//enclosure[not(@url)]" "$APPCAST"
+
+        # Insert new <item> at the top of <channel> with all required children and attributes
+        xmlstarlet ed -L \
+          -s "/rss/channel" -t elem -n "item" -v "" \
+          -s "/rss/channel/item[1]" -t elem -n "title" -v "Version $VERSION" \
+          -s "/rss/channel/item[1]" -t elem -n "pubDate" -v "$PUBDATE" \
+          -s "/rss/channel/item[1]" -t elem -n "enclosure" -v "" \
+          -i "/rss/channel/item[1]/enclosure" -t attr -n "url" -v "$DMG_URL" \
+          -i "/rss/channel/item[1]/enclosure" -t attr -n "sparkle:version" -v "$VERSION" \
+          -i "/rss/channel/item[1]/enclosure" -t attr -n "length" -v "$LENGTH" \
+          -i "/rss/channel/item[1]/enclosure" -t attr -n "type" -v "application/x-apple-diskimage" \
+          -i "/rss/channel/item[1]/enclosure" -t attr -n "sparkle:edSignature" -v "$SPARKLE_SIGNATURE" \
+          "$APPCAST"
+        print_status "Appcast updated with new release item."
+      else
+        print_warning "xmlstarlet not found. Please install with: brew install xmlstarlet"
+      fi
+    fi
   else
     print_warning "DMG creation failed (create-dmg not found or failed)"
   fi
@@ -166,8 +232,8 @@ print_status "Build completed successfully!"
 echo ""
 echo "📦 Distribution files:"
 echo "   App: ${EXPORT_PATH}/Sentiment Analyzer.app"
-if [ -f "SentimentAnalyzer.dmg" ]; then
-  echo "   DMG: SentimentAnalyzer.dmg"
+if [ -f "$DEST_DMG_PATH" ]; then
+  echo "   DMG: $DEST_DMG_PATH"
 fi
 echo ""
 echo "🔍 Next steps:"
@@ -179,5 +245,11 @@ echo ""
 # Clean up archive
 print_status "Cleaning up archive..."
 rm -rf "${ARCHIVE_NAME}"
+
+# Remove the dist folder if it exists
+if [ -d "${EXPORT_PATH}" ]; then
+  print_status "Removing temporary export folder: ${EXPORT_PATH}"
+  rm -rf "${EXPORT_PATH}"
+fi
 
 print_status "Build process completed! 🎉"
