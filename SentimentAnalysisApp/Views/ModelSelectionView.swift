@@ -49,13 +49,24 @@ struct ModelSelectionView: View {
                     .padding(.horizontal)
             }
             // Main content
-            Picker("", selection: $modelSelectionMode) {
+            Picker("Model", selection: $modelSelectionMode) {
                 Text("Existing Model").tag(ModelSelectionMode.existing)
                 Text("Download New").tag(ModelSelectionMode.download)
-            }
+            }.labelsHidden()
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .disabled(isDownloading)
+            .onChange(of: ollamaManager.availableModels) { newModels in
+                print("[ModelSelectionView] .onChange fired. newModels: \(newModels)")
+                print("[ModelSelectionView] .onChange current selectedModel: '\(selectedModel)'")
+                if selectedModel.isEmpty, let first = newModels.first {
+                    selectedModel = first
+                    print("[ModelSelectionView] Set initial selected model to: '\(selectedModel)'")
+                } else if !newModels.contains(selectedModel), let first = newModels.first {
+                    selectedModel = first
+                    print("[ModelSelectionView] Updated selected model to: '\(selectedModel)'")
+                }
+            }
 
             // Shared heading
             Text(modelSelectionMode == .existing ? "Available Models" : "Download New Model")
@@ -82,20 +93,17 @@ struct ModelSelectionView: View {
                     .cornerRadius(12)
                 } else if modelSelectionMode == .existing {
                     VStack(spacing: 12) {
-                        Picker("Select a model", selection: $selectedModel) {
-                            ForEach(ollamaManager.availableModels.sorted(), id: \.self) { model in
-                                Text(model).tag(model)
+                        if !ollamaManager.availableModels.isEmpty && !selectedModel.isEmpty {
+                            Picker("Select a model", selection: $selectedModel) {
+                                ForEach(ollamaManager.availableModels.sorted(), id: \.self) { model in
+                                    Text(model).tag(model)
+                                }
                             }
-                        }
-                        .pickerStyle(.menu)
-                        .onAppear {
-                            print("[ModelSelectionView] Available models: \(ollamaManager.availableModels)")
-                            print("[ModelSelectionView] Selected model: '\(selectedModel)'")
-                            // Ensure selectedModel matches one of the available models
-                            if !ollamaManager.availableModels.contains(selectedModel) && !ollamaManager.availableModels.isEmpty {
-                                selectedModel = ollamaManager.availableModels.first!
-                                print("[ModelSelectionView] Updated selected model to: '\(selectedModel)'")
-                            }
+                            .pickerStyle(.menu)
+                        } else if ollamaManager.availableModels.isEmpty {
+                            ProgressView("Loading models...")
+                        } else if selectedModel.isEmpty {
+                            ProgressView("Selecting default model...")
                         }
                     }
                     .frame(minHeight: 80)
@@ -250,6 +258,16 @@ struct ModelSelectionView: View {
         }
         .frame(maxWidth: 600)
         .padding()
+        .task {
+            let savedModel = UserDefaults.standard.string(forKey: "selectedModel")
+            if let savedModel = savedModel, ollamaManager.availableModels.contains(savedModel) {
+                selectedModel = savedModel
+                print("[ModelSelectionView] .task restored valid selectedModel from UserDefaults: '\(selectedModel)'")
+            } else if let first = ollamaManager.availableModels.first {
+                selectedModel = first
+                print("[ModelSelectionView] .task set initial selectedModel to: '\(selectedModel)'")
+            }
+        }
     }
 
     private func startDownload() {

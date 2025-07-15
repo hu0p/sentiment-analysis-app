@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		29A10ADF2E22191E00E7DEBC /* SentimentAnalysis.icon in Resources */ = {isa = PBXBuildFile; fileRef = 29A10ADE2E22191E00E7DEBC /* SentimentAnalysis.icon */; };
+		29254B842E25DD5E0023721C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 29254B832E25DD5E0023721C /* Sparkle */; };
 		29A10AE22E22237F00E7DEBC /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 29A10AE12E22237F00E7DEBC /* CoreXLSX */; };
 /* End PBXBuildFile section */
 
@@ -32,7 +32,6 @@
 		29A10A7B2E20509E00E7DEBC /* Sentiment Analyzer - Debug.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Sentiment Analyzer - Debug.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		29A10A8C2E2050A000E7DEBC /* SentimentAnalysisAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SentimentAnalysisAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		29A10A962E2050A000E7DEBC /* SentimentAnalysisAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SentimentAnalysisAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		29A10ADE2E22191E00E7DEBC /* SentimentAnalysis.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SentimentAnalysis.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -72,6 +71,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				29A10AE22E22237F00E7DEBC /* CoreXLSX in Frameworks */,
+				29254B842E25DD5E0023721C /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,7 +99,6 @@
 				29A10A8F2E2050A000E7DEBC /* SentimentAnalysisAppTests */,
 				29A10A992E2050A000E7DEBC /* SentimentAnalysisAppUITests */,
 				29A10A7C2E20509E00E7DEBC /* Products */,
-				29A10ADE2E22191E00E7DEBC /* SentimentAnalysis.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -134,6 +133,7 @@
 			name = SentimentAnalysisApp;
 			packageProductDependencies = (
 				29A10AE12E22237F00E7DEBC /* CoreXLSX */,
+				29254B832E25DD5E0023721C /* Sparkle */,
 			);
 			productName = SentimentAnalysisApp;
 			productReference = 29A10A7B2E20509E00E7DEBC /* Sentiment Analyzer - Debug.app */;
@@ -219,6 +219,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				29A10AE02E22237F00E7DEBC /* XCRemoteSwiftPackageReference "CoreXLSX" */,
+				29254B822E25DD5E0023721C /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 29A10A7C2E20509E00E7DEBC /* Products */;
@@ -237,7 +238,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				29A10ADF2E22191E00E7DEBC /* SentimentAnalysis.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -298,10 +298,9 @@
 		29A10AA02E2050A000E7DEBC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = SentimentAnalysis;
-				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = SentimentAnalysis;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = SentimentAnalysisApp/SentimentAnalysisApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -342,10 +341,9 @@
 		29A10AA12E2050A000E7DEBC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = SentimentAnalysis;
-				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = SentimentAnalysis;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = SentimentAnalysisApp/SentimentAnalysisApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -633,6 +631,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		29254B822E25DD5E0023721C /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.1;
+			};
+		};
 		29A10AE02E22237F00E7DEBC /* XCRemoteSwiftPackageReference "CoreXLSX" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/CoreOffice/CoreXLSX";
@@ -644,6 +650,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		29254B832E25DD5E0023721C /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 29254B822E25DD5E0023721C /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		29A10AE12E22237F00E7DEBC /* CoreXLSX */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 29A10AE02E22237F00E7DEBC /* XCRemoteSwiftPackageReference "CoreXLSX" */;

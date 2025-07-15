@@ -1,12 +1,35 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Sparkle
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    // This controller manages Sparkle's updater and menu integration
+    var updaterController: SPUStandardUpdaterController?
+    
+    override init() {
+        super.init()
+        // Start Sparkle updater
+        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    }
+}
 
 @main
 struct SentimentAnalysisApp: App {
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
+
     var body: some Scene {
         WindowGroup {
             AppFlowView()
                 .frame(minWidth: 600, minHeight: 800)
+        }
+        .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(updater: updaterController.updater)
+            }
         }
     }
 }
@@ -81,7 +104,7 @@ struct AppFlowView: View {
                                 isCheckingOllama = true
                                 ollamaManager.startSetup()
                                 DispatchQueue.global(qos: .userInitiated).async {
-                                    while !ollamaManager.isReady && !ollamaManager.hasError {
+                                    while !ollamaManager.isReady && !ollamaManager.hasError && !ollamaManager.shouldPromptForBrewInstall && !ollamaManager.isWaitingForManualInstall {
                                         usleep(100_000)
                                     }
                                     DispatchQueue.main.async {
@@ -124,27 +147,34 @@ struct AppFlowView: View {
                         ColumnSelectionView(
                             appFlowViewModel: viewModel,
                             fileImportViewModel: fileImportViewModel,
-                            analysisViewModel: analysisViewModel
+                            analysisViewModel: analysisViewModel,
+                            selectedModel: selectedModel,
+                            additionalContext: additionalContext
                         )
                     case .analysisProgress:
                         AnalysisProgressView(
                             viewModel: analysisViewModel,
                             onContinue: { viewModel.goToNextStep() },
                             onCancel: {
-                                analysisViewModel.reset()
-                                viewModel.currentStep = .columnSelection
+                                Task { @MainActor in
+                                    await analysisViewModel.reset()
+                                    viewModel.currentStep = .fileImport
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                                        viewModel.currentStep = .columnSelection
+                                    }
+                                }
                             }
                         )
+                        .id(analysisViewModel.runID)
                         .onAppear {
-                            if analysisViewModel.results.isEmpty {
-                                analysisViewModel.startAnalysis(fileImportViewModel: fileImportViewModel, model: selectedModel, additionalContext: additionalContext)
-                            }
+                            print("[AppFlowView] AnalysisProgressView appeared. Calling startAnalysis.")
+                            analysisViewModel.startAnalysis(fileImportViewModel: fileImportViewModel, model: selectedModel, additionalContext: additionalContext)
                         }
                     case .resultsSummary:
                         ResultsSummaryView(
                             results: $analysisViewModel.results,
                             onExport: exportResults,
-                            onStartOver: resetAll
+                            onStartOver: { Task { await resetAll() } }
                         )
                     }
                     if isCheckingOllama {
@@ -173,7 +203,7 @@ struct AppFlowView: View {
                         isCheckingOllama = true
                         ollamaManager.startSetup()
                         DispatchQueue.global(qos: .userInitiated).async {
-                            while !ollamaManager.isReady && !ollamaManager.hasError {
+                            while !ollamaManager.isReady && !ollamaManager.hasError && !ollamaManager.shouldPromptForBrewInstall && !ollamaManager.isWaitingForManualInstall {
                                 usleep(100_000)
                             }
                             DispatchQueue.main.async {
@@ -235,10 +265,10 @@ struct AppFlowView: View {
         }
     }
     
-    private func resetAll() {
+    private func resetAll() async {
         viewModel.resetFlow()
         fileImportViewModel.reset()
-        analysisViewModel.reset()
+        await analysisViewModel.reset()
         selectedModel = ""
         additionalContext = ""
     }

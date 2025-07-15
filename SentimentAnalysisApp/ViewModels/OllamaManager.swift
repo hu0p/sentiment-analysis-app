@@ -11,9 +11,15 @@ class OllamaManager: ObservableObject {
     @Published var downloadProgress: Double = 0.0
     @Published var downloadOutput: [String] = []
     @Published var downloadModelName: String = ""
+    @Published var installLog: [String] = []
+    @Published var shouldPromptForBrewInstall: Bool = false
+    @Published var isWaitingForManualInstall: Bool = false
+    
+    private var detectedBrewPath: String? = nil
+    private var isInstallingManually: Bool = false
     
     private let baseURL = "http://localhost:11434"
-    private let modelName = "gemma3:4b"
+    private let modelName = "gemma3:1b"
     
     private func waitForOllamaServerReady(timeout: TimeInterval = 10.0) {
         let start = Date()
@@ -28,28 +34,60 @@ class OllamaManager: ObservableObject {
     }
 
     func startSetup() {
+        print("[OllamaManager] startSetup called")
         progress = 0.0
         isReady = false
         hasError = false
+        // Don't reset isInstallingManually here - only reset it when we're done
         statusMessage = "Checking for Ollama installation..."
         DispatchQueue.global(qos: .userInitiated).async {
-            // Only use --version for initial binary check
-            guard let ollamaPath = self.isOllamaInstalled() else {
-                self.updateError("Ollama not found in known locations. Please install it manually.")
+                      // Check if Ollama is already installed before fallback
+            if let ollamaPath = self.isOllamaInstalled() {
+                print("[OllamaManager] Ollama already installed at \(ollamaPath). Skipping fallback install.")
+                self.continueSetupAfterInstall(ollamaPath: ollamaPath)
                 return
             }
-            self.updateStatus("Ollama found at: \(ollamaPath). Starting server...")
-            // Start the server if not running
-            self.startOllamaServer(ollamaPath: ollamaPath)
-            // Wait for the server to be ready
-            self.waitForOllamaServerReady()
-            self.updateProgress(0.3)
-            self.updateStatus("Checking for available models...")
-            // Populate available models using API
-            _ = self.listAvailableModels()
-            self.updateProgress(1.0)
-            self.updateStatus("Ollama is ready!")
-            self.setReady()
+
+
+            var brewPath = ""
+            // Try 'which brew' first
+            let whichBrew = Process()
+            whichBrew.launchPath = "/usr/bin/which"
+            whichBrew.arguments = ["brew"]
+            let brewPipe = Pipe()
+            whichBrew.standardOutput = brewPipe
+            whichBrew.standardError = brewPipe
+            do {
+                try whichBrew.run()
+                whichBrew.waitUntilExit()
+                let brewData = brewPipe.fileHandleForReading.readDataToEndOfFile()
+                brewPath = String(data: brewData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            } catch {
+                // Ignore error, will check common paths below
+            }
+            // If not found, check common Homebrew locations
+            if brewPath.isEmpty {
+                let possibleBrewPaths = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
+                for path in possibleBrewPaths {
+                    if FileManager.default.fileExists(atPath: path) {
+                        brewPath = path
+                        break
+                    }
+                }
+            }
+            print("[OllamaManager] Detected brew path: \(brewPath)")
+            if && !brewPath.isEmpty {
+                DispatchQueue.main.async {
+                    self.statusMessage = "Brew environment detected!"
+                    self.shouldPromptForBrewInstall = true
+                    self.detectedBrewPath = brewPath
+                }
+                // Pause setup until user confirms in UI
+                return
+            }
+            // If no brew, try normal install flow
+            print("[OllamaManager] No brew detected, calling installOllamaWithFallback")
+            self.installOllamaWithFallback()
         }
     }
     
@@ -106,6 +144,33 @@ class OllamaManager: ObservableObject {
 
     func isOllamaInstalled() -> String? {
         let fileManager = FileManager.default
+        
+        // First check if Ollama.app exists in Applications
+        let ollamaAppPath = "/Applications/Ollama.app"
+        if fileManager.fileExists(atPath: ollamaAppPath) {
+            let binaryPath = "\(ollamaAppPath)/Contents/MacOS/ollama"
+            if fileManager.fileExists(atPath: binaryPath) {
+                let process = Process()
+                process.launchPath = binaryPath
+                process.arguments = ["--version"]
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                    print("[OllamaManager] Ran ollama at \(binaryPath), exit: \(process.terminationStatus), output: \(output)")
+                    if process.terminationStatus == 0 {
+                        return binaryPath
+                    }
+                } catch {
+                    print("[OllamaManager] Failed to run ollama at \(binaryPath): \(error)")
+                }
+            }
+        }
+        
+        // Then check other known paths
         for path in knownOllamaPaths {
             if fileManager.fileExists(atPath: path) {
                 let process = Process()
@@ -137,22 +202,175 @@ class OllamaManager: ObservableObject {
         completion(path) // Assume granted for now
     }
     
-    private func promptUserToSelectOllamaBinary() {
-        // TODO: Implement UI to let user select ollama binary if not found automatically
-        print("[OllamaManager] Prompting user to select ollama binary (not yet implemented)")
-    }
+
     
-    private func installOllama() -> Bool {
-        let script = "curl -fsSL https://ollama.com/install.sh | sh"
-        let process = Process()
-        process.launchPath = "/bin/zsh"
-        process.arguments = ["-c", script]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        try? process.run()
-        process.waitUntilExit()
-        return process.terminationStatus == 0
+    // Fallback install logic (pkg)
+    private func installOllamaWithFallback() {
+        print("[OllamaManager] installOllamaWithFallback called. isInstallingManually: \(isInstallingManually)")
+        
+        // Prevent duplicate installation attempts
+        guard !isInstallingManually else {
+            print("[OllamaManager] Manual installation already in progress, skipping duplicate attempt")
+            return
+        }
+        
+        isInstallingManually = true
+        print("[OllamaManager] Set isInstallingManually = true")
+        DispatchQueue.main.async {
+            self.installLog = []
+        }
+        let dmgURLString = "https://www.ollama.com/download/Ollama.dmg"
+        guard let dmgURL = URL(string: dmgURLString) else {
+            let errorMsg = "[OllamaManager] Invalid Ollama .dmg URL."
+            DispatchQueue.main.async {
+                self.installLog = [errorMsg]
+            }
+            print(errorMsg)
+            self.updateError("Ollama could not be installed automatically. Please install it manually.")
+            return
+        }
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory
+        let tempDmgPath = tempDir.appendingPathComponent("Ollama.dmg").path
+        let downloadSemaphore = DispatchSemaphore(value: 0)
+        var downloadSuccess = false
+        var downloadError: String? = nil
+        var httpStatus: Int = 0
+        var contentType: String = ""
+        var fileSize: UInt64 = 0
+        var request = URLRequest(url: dmgURL)
+        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", forHTTPHeaderField: "User-Agent")
+        let task = URLSession.shared.downloadTask(with: request) { location, response, error in
+            defer { downloadSemaphore.signal() }
+            if let httpResponse = response as? HTTPURLResponse {
+                httpStatus = httpResponse.statusCode
+                contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
+            }
+            if let error = error {
+                let msg = "[OllamaManager] Failed to download .dmg: \(error)"
+                DispatchQueue.main.async {
+                    self.installLog = [msg]
+                }
+                downloadError = msg
+                return
+            }
+            guard let location = location else {
+                let msg = "[OllamaManager] No file location for .dmg download."
+                DispatchQueue.main.async {
+                    self.installLog = [msg]
+                }
+                downloadError = msg
+                return
+            }
+            do {
+                if fileManager.fileExists(atPath: tempDmgPath) {
+                    try fileManager.removeItem(atPath: tempDmgPath)
+                }
+                try fileManager.moveItem(at: location, to: URL(fileURLWithPath: tempDmgPath))
+                let attrs = try fileManager.attributesOfItem(atPath: tempDmgPath)
+                fileSize = (attrs[.size] as? UInt64) ?? 0
+                downloadSuccess = true
+            } catch {
+                let msg = "[OllamaManager] Error moving .dmg: \(error)"
+                DispatchQueue.main.async {
+                    self.installLog = [msg]
+                }
+                downloadError = msg
+            }
+        }
+        task.resume()
+        downloadSemaphore.wait()
+        print("[OllamaManager] HTTP status: \(httpStatus)")
+        print("[OllamaManager] Content-Type: \(contentType)")
+        print("[OllamaManager] Downloaded file size: \(fileSize) bytes")
+        if !downloadSuccess || httpStatus != 200 || fileSize < 1024 * 1024 {
+            let errorMsg = downloadError ?? "[OllamaManager] Downloaded .dmg is invalid or too small (\(fileSize) bytes)."
+            DispatchQueue.main.async {
+                self.installLog = [errorMsg]
+            }
+            print(errorMsg)
+            self.updateError("Ollama could not be installed automatically. Please install it manually.")
+            return
+        }
+        // Open the .dmg in Finder from temp directory
+        let openProcess = Process()
+        openProcess.launchPath = "/usr/bin/open"
+        openProcess.arguments = [tempDmgPath]
+        do {
+            try openProcess.run()
+            openProcess.waitUntilExit()
+            let msg = "[OllamaManager] Opened .dmg in Finder. Please install manually if not prompted."
+            DispatchQueue.main.async {
+                self.installLog.append(msg)
+                self.isWaitingForManualInstall = true
+                self.updateStatus("Waiting for Ollama installation...")
+            }
+            print(msg)
+            // Show waiting status and poll for install
+            DispatchQueue.global(qos: .userInitiated).async {
+                let maxWait: TimeInterval = 600 // 10 minutes
+                let pollInterval: TimeInterval = 2
+                let start = Date()
+                while Date().timeIntervalSince(start) < maxWait {
+                    if let ollamaPath = self.isOllamaInstalled() {
+                        DispatchQueue.main.async {
+                            self.isWaitingForManualInstall = false
+                        }
+                        self.continueSetupAfterInstall(ollamaPath: ollamaPath, tempDmgPath: tempDmgPath)
+                        return
+                    }
+                    Thread.sleep(forTimeInterval: pollInterval)
+                }
+                DispatchQueue.main.async {
+                    self.isWaitingForManualInstall = false
+                }
+                self.isInstallingManually = false
+                self.updateError("Ollama was not installed after waiting. Please try again or install manually.")
+            }
+            return
+        } catch {
+            let errorMsg = "[OllamaManager] Failed to open .dmg: \(error)"
+            DispatchQueue.main.async {
+                self.installLog.append(errorMsg)
+
+            }
+            print(errorMsg)
+
+            self.isInstallingManually = false
+            self.updateError("Ollama could not be installed automatically. Please install it manually.")
+            return
+        }
+        // If still not found, show error
+        self.updateError("Ollama could not be installed automatically. Please install it manually.")
+    }
+
+    // Continue the rest of the setup after install
+    private func continueSetupAfterInstall(ollamaPath: String, tempDmgPath: String? = nil) {
+        // Reset installation flag
+        self.isInstallingManually = false
+        print("[OllamaManager] Reset isInstallingManually = false (success)")
+        
+        self.updateStatus("Ollama found at: \(ollamaPath). Starting server...")
+        // Start the server if not running
+        self.startOllamaServer(ollamaPath: ollamaPath)
+        // Wait for the server to be ready
+        self.waitForOllamaServerReady()
+        self.updateProgress(0.3)
+        self.updateStatus("Checking for available models...")
+        // Populate available models using API
+        _ = self.listAvailableModels()
+        self.updateProgress(1.0)
+        self.updateStatus("Ollama is ready! Please select a model.")
+        self.setReady()
+        // Delete the temp .dmg if provided
+        if let tempDmgPath = tempDmgPath {
+            do {
+                try FileManager.default.removeItem(atPath: tempDmgPath)
+                print("[OllamaManager] Deleted temp .dmg at \(tempDmgPath)")
+            } catch {
+                print("[OllamaManager] Failed to delete temp .dmg: \(error)")
+            }
+        }
     }
     
     private func isModelAvailable() -> Bool {
@@ -295,6 +513,8 @@ class OllamaManager: ObservableObject {
             self.isReady = true
             self.hasError = false
             self.progress = 1.0
+            self.isInstallingManually = false
+            print("[OllamaManager] Reset isInstallingManually = false (ready)")
         }
     }
     
@@ -303,6 +523,8 @@ class OllamaManager: ObservableObject {
             self.statusMessage = message
             self.hasError = true
             self.isReady = false
+            self.isInstallingManually = false
+            print("[OllamaManager] Reset isInstallingManually = false (error)")
         }
     }
 
@@ -436,18 +658,57 @@ class OllamaManager: ObservableObject {
         return cleaned
     }
 
-    // Try to extract a progress percentage from a line
-    private func extractProgressPercent(from line: String) -> Double? {
-        // Example: "pulling  23% complete"
-        let percentRegex = try! NSRegularExpression(pattern: "([0-9]{1,3})%", options: [])
-        let range = NSRange(location: 0, length: line.utf16.count)
-        if let match = percentRegex.firstMatch(in: line, options: [], range: range),
-           let percentRange = Range(match.range(at: 1), in: line) {
-            let percentString = String(line[percentRange])
-            if let percent = Double(percentString) {
-                return percent / 100.0
+
+
+    func continueBrewInstall() {
+        guard let brewPath = self.detectedBrewPath else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let brewInstall = Process()
+            brewInstall.launchPath = brewPath
+            brewInstall.arguments = ["install", "ollama"]
+            let pipe = Pipe()
+            brewInstall.standardOutput = pipe
+            brewInstall.standardError = pipe
+            do {
+                try brewInstall.run()
+                brewInstall.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                let lines = output.components(separatedBy: "\n")
+                DispatchQueue.main.async {
+                    self.installLog = lines
+                }
+                print("[OllamaManager] Homebrew install output:\n\(output)")
+                if brewInstall.terminationStatus == 0 {
+                    DispatchQueue.main.async {
+                        self.installLog.append("Ollama installed successfully. Continuing setup...")
+                        self.shouldPromptForBrewInstall = false
+                    }
+                    // After successful install, continue setup
+                    if let ollamaPath = self.isOllamaInstalled() {
+                        self.continueSetupAfterInstall(ollamaPath: ollamaPath)
+                        return
+                    }
+                } else {
+                    let failMsg = "[OllamaManager] Homebrew install failed with exit code \(brewInstall.terminationStatus)"
+                    DispatchQueue.main.async {
+                        self.installLog.append(failMsg)
+                        self.shouldPromptForBrewInstall = false
+                    }
+                    print(failMsg)
+                    // Fallback to .pkg
+                    self.installOllamaWithFallback()
+                }
+            } catch {
+                let errorMsg = "[OllamaManager] Error running brew install: \(error)"
+                DispatchQueue.main.async {
+                    self.installLog.append(errorMsg)
+                    self.shouldPromptForBrewInstall = false
+                }
+                print(errorMsg)
+                // Fallback to .pkg
+                self.installOllamaWithFallback()
             }
         }
-        return nil
     }
 } 

@@ -1,5 +1,5 @@
 {
-  "originHash" : "2f26fe449d6a1c773ef1e07f38aa4b6a6d381c58cbc309230873a592f6a2267b",
+  "originHash" : "a77868c8082e0623835264843599d1697d5ecd4d1128d3cd1fd16fcb6ed95240",
   "pins" : [
     {
       "identity" : "corexlsx",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "1391f3832ea2eeee5186ea8abb81ea49ed0609cc",
         "version" : "0.14.2"
+      }
+    },
+    {
+      "identity" : "sparkle",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sparkle-project/Sparkle",
+      "state" : {
+        "revision" : "df074165274afaa39539c05d57b0832620775b11",
+        "version" : "2.7.1"
       }
     },
     {

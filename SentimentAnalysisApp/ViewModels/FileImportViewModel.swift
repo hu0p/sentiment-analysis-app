@@ -3,9 +3,25 @@ import SwiftUI
 import CoreXLSX
 
 class FileImportViewModel: ObservableObject {
-    @Published var fileURL: URL? = nil
+    @Published var fileURL: URL? = nil {
+        didSet {
+            if let url = fileURL {
+                UserDefaults.standard.set(url.path, forKey: "selectedFilePath")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedFilePath")
+            }
+        }
+    }
     @Published var columns: [String] = []
-    @Published var selectedColumn: String? = nil
+    @Published var selectedColumn: String? = nil {
+        didSet {
+            if let col = selectedColumn {
+                UserDefaults.standard.set(col, forKey: "selectedColumn")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedColumn")
+            }
+        }
+    }
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
     @Published var previewData: [[String]] = []
@@ -14,6 +30,18 @@ class FileImportViewModel: ObservableObject {
     private var xlsxFile: XLSXFile?
     private var sharedStrings: SharedStrings?
     private var worksheet: Worksheet?
+    
+    init() {
+        // Restore fileURL if file exists
+        if let savedPath = UserDefaults.standard.string(forKey: "selectedFilePath") {
+            let url = URL(fileURLWithPath: savedPath)
+            if FileManager.default.fileExists(atPath: url.path) {
+                self.fileURL = url
+                // Automatically import the file to populate columns and preview
+                self.importFile(url: url)
+            }
+        }
+    }
     
     func importFile(url: URL) {
         self.fileURL = url
@@ -29,16 +57,19 @@ class FileImportViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.columns = columns
                     self.previewData = previewData
-                    if columns.count == 1 {
+                    // Only restore selectedColumn if file path matches UserDefaults
+                    if let savedPath = UserDefaults.standard.string(forKey: "selectedFilePath"),
+                       savedPath == url.path,
+                       let savedCol = UserDefaults.standard.string(forKey: "selectedColumn"),
+                       columns.contains(savedCol) {
+                        self.selectedColumn = savedCol
+                    } else if columns.count == 1 {
                         self.selectedColumn = columns.first
                     }
                     self.isLoading = false
                 }
             } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
+                // Handle error silently for distribution
             }
         }
     }
@@ -52,7 +83,6 @@ class FileImportViewModel: ObservableObject {
         do {
             return try extractColumnData(columnIndex: columnIndex)
         } catch {
-            print("Error extracting column data: \(error)")
             return []
         }
     }

@@ -7,7 +7,8 @@ struct AnalysisProgressView: View {
     @State private var hasTriggeredAutoContinue = false
     
     var body: some View {
-        VStack {
+        print("[AnalysisProgressView] body recomputed")
+        return VStack {
             VStack(spacing: 32) {
                 // Header with icon
                 VStack(spacing: 16) {
@@ -71,29 +72,16 @@ struct AnalysisProgressView: View {
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
-                        
-                        // Real-time counter
-                        HStack(spacing: 4) {
-                            Text("Analyzed:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text("\(viewModel.results.count)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.blue)
-                        }
                     }
                 }
                 
                 // Action buttons
                 HStack(spacing: 16) {
-                    if viewModel.isAnalyzing {
-                        Button("Abort", role: .cancel) {
-                            onCancel?()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                    Button("Abort", role: .cancel) {
+                        onCancel?()
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
             }
             .frame(maxWidth: 500)

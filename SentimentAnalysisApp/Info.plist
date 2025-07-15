@@ -2,13 +2,36 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
 	<key>CFBundleName</key>
 	<string>Sentiment Analyzer</string>
 	<key>CFBundleDisplayName</key>
 	<string>Sentiment Analyzer</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.inamorata.SentimentAnalysisApp</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2024. All rights reserved.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>SUFeedURL</key>
+	<string>https://hu0p.github.io/SentimentAnalysisApp/releases/appcast.xml</string>
 </dict>
 </plist>

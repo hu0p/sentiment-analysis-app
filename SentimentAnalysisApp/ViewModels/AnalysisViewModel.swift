@@ -7,6 +7,25 @@ struct SentimentResult: Identifiable {
     var sentiment: String
 }
 
+// Actor to manage the analysis task, ensuring only one runs at a time
+actor AnalysisTaskManager {
+    private var currentTask: Task<Void, Never>? = nil
+
+    func startAnalysis(work: @escaping () async -> Void) async {
+        currentTask?.cancel()
+        await currentTask?.value // Wait for the old task to finish
+        currentTask = Task {
+            await work()
+        }
+    }
+
+    func cancel() async {
+        currentTask?.cancel()
+        await currentTask?.value
+        currentTask = nil
+    }
+}
+
 class AnalysisViewModel: ObservableObject {
     @Published var progress: Double = 0.0
     @Published var statusMessage: String = ""
@@ -15,15 +34,33 @@ class AnalysisViewModel: ObservableObject {
     @Published var hasError: Bool = false
     @Published var errorMessage: String? = nil
     @Published var results: [SentimentResult] = []
-    @Published var currentModel: String = ""
+    @Published var currentModel: String = "" {
+        didSet {
+            // Persist to UserDefaults when changed
+            UserDefaults.standard.set(currentModel, forKey: "selectedModel")
+        }
+    }
     @Published var currentFileName: String = ""
+    @Published var runID: UUID = UUID()
     
     private var comments: [String] = []
     private var cancellables = Set<AnyCancellable>()
     private var task: Task<Void, Never>? = nil
+    private var isCancelling: Bool = false
+    private let taskManager = AnalysisTaskManager()
+    
+    init() {
+        // Restore model from UserDefaults if present
+        let savedModel = UserDefaults.standard.string(forKey: "selectedModel")
+        print("[AnalysisViewModel] Restoring selectedModel from UserDefaults: \(String(describing: savedModel))")
+        if let savedModel = savedModel {
+            self.currentModel = savedModel
+        }
+    }
     
     func startAnalysis(fileImportViewModel: FileImportViewModel, model: String, additionalContext: String = "") {
-        reset()
+        statusMessage = ""
+        print("[AnalysisViewModel] startAnalysis called (actor-based).")
         currentModel = model
         if let fileURL = fileImportViewModel.fileURL {
             currentFileName = fileURL.lastPathComponent
@@ -32,52 +69,68 @@ class AnalysisViewModel: ObservableObject {
         }
         isAnalyzing = true
         statusMessage = "Extracting data..."
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            let comments = fileImportViewModel.getDataForSelectedColumn()
-            
-            DispatchQueue.main.async {
-                self.comments = comments
-                self.statusMessage = "Analyzing \(comments.count) comments..."
-                self.runAnalysis(model: model, additionalContext: additionalContext)
+        let comments = fileImportViewModel.getDataForSelectedColumn()
+        print("[AnalysisViewModel] Extracted \(comments.count) comments from selected column.")
+        self.comments = comments
+        self.statusMessage = "Analyzing \(comments.count) comments..."
+        Task {
+            await taskManager.startAnalysis {
+                await self.runAnalysis(model: model, additionalContext: additionalContext)
             }
         }
     }
-    
-    private func runAnalysis(model: String, additionalContext: String) {
+
+    func abortAnalysis() {
+        Task {
+            await taskManager.cancel()
+        }
+    }
+
+    func runAnalysis(model: String, additionalContext: String) async {
+        print("[AnalysisViewModel] runAnalysis called (actor-based). comments.count: \(comments.count)")
         guard !comments.isEmpty else {
-            self.statusMessage = "No comments to analyze."
-            self.isAnalyzing = false
-            self.isComplete = true
+            await MainActor.run {
+                self.statusMessage = "No comments to analyze."
+                self.isAnalyzing = false
+                self.isComplete = true
+                print("[AnalysisViewModel] No comments to analyze. Exiting runAnalysis.")
+            }
             return
         }
-        results = []
-        progress = 0.0
-        isComplete = false
-        hasError = false
-        errorMessage = nil
+        await MainActor.run {
+            self.results = []
+            self.progress = 0.0
+            self.isComplete = false
+            self.hasError = false
+            self.errorMessage = nil
+        }
         let total = comments.count
-        task = Task {
-            for (idx, comment) in comments.enumerated() {
-                if Task.isCancelled { break }
-                let sentiment = await self.analyzeSentiment(comment: comment, model: model, additionalContext: additionalContext)
-                if Task.isCancelled { break }
-                await MainActor.run {
-                    self.results.append(SentimentResult(original: comment, sentiment: sentiment))
-                    self.progress = Double(idx + 1) / Double(total)
-                    self.statusMessage = "Analyzed \(idx + 1) of \(total) comments..."
-                }
+        for (idx, comment) in comments.enumerated() {
+            if Task.isCancelled {
+                print("[AnalysisViewModel] Task cancelled in loop at idx: \(idx)")
+                break
+            }
+            let sentiment = await self.analyzeSentiment(comment: comment, model: model, additionalContext: additionalContext)
+            if Task.isCancelled {
+                print("[AnalysisViewModel] Task cancelled after analyzeSentiment at idx: \(idx)")
+                break
             }
             await MainActor.run {
-                if Task.isCancelled {
-                    self.isAnalyzing = false
-                    self.isComplete = false
-                    self.statusMessage = "Analysis aborted."
-                } else {
-                    self.isAnalyzing = false
-                    self.isComplete = true
-                    self.statusMessage = "Analysis complete!"
-                }
+                self.results.append(SentimentResult(original: comment, sentiment: sentiment))
+                self.progress = Double(idx + 1) / Double(total)
+                self.statusMessage = "Analyzing \(idx + 1) of \(total) comments..."
+            }
+        }
+        await MainActor.run {
+            if Task.isCancelled {
+                self.isAnalyzing = false
+                self.isComplete = false
+                print("[AnalysisViewModel] Task finished as cancelled.")
+            } else {
+                self.isAnalyzing = false
+                self.isComplete = true
+                self.statusMessage = "Analysis complete!"
+                print("[AnalysisViewModel] Task finished as complete.")
             }
         }
     }
@@ -117,9 +170,13 @@ You are analyzing text sentiment.\(contextString) Respond with ONLY one word: po
         return "neutral"
     }
     
-    func reset() {
-        progress = 0.0
+    @MainActor
+    func reset() async {
+        print("[AnalysisViewModel] async reset called (actor-based).")
+        isCancelling = true
+        await taskManager.cancel()
         statusMessage = ""
+        progress = 0.0
         isAnalyzing = false
         isComplete = false
         hasError = false
@@ -128,7 +185,8 @@ You are analyzing text sentiment.\(contextString) Respond with ONLY one word: po
         currentModel = ""
         currentFileName = ""
         comments = []
-        task?.cancel()
-        task = nil
+        isCancelling = false
+        runID = UUID()
+        print("[AnalysisViewModel] async reset finished (actor-based).")
     }
 } 

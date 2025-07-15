@@ -10,6 +10,8 @@ struct ColumnSelectionView: View {
     @ObservedObject var appFlowViewModel: AppFlowViewModel
     @ObservedObject var fileImportViewModel: FileImportViewModel
     @ObservedObject var analysisViewModel: AnalysisViewModel
+    var selectedModel: String
+    var additionalContext: String
     
     // Extracted computed property for preview table data
     private var previewTableData: [ColumnPreviewRow] {
@@ -53,7 +55,8 @@ struct ColumnSelectionView: View {
     }
     
     var body: some View {
-        ScrollView {
+        print("[ColumnSelectionView] selectedColumn: \(String(describing: fileImportViewModel.selectedColumn))")
+        return ScrollView {
             VStack(spacing: 20) {
                 // Header
                 VStack(spacing: 8) {
@@ -91,6 +94,9 @@ struct ColumnSelectionView: View {
                                             fileImportViewModel.selectedColumn = column
                                         }
                                     )
+                                    .onAppear {
+                                        print("[ColumnSelectionView] Rendering column: \(column), selected: \(String(describing: fileImportViewModel.selectedColumn))")
+                                    }
                                 }
                             }
                             .padding(.horizontal, 4)
@@ -139,9 +145,15 @@ struct ColumnSelectionView: View {
                 // Navigation Buttons
                 VStack(spacing: 16) {
                     Button("Start Analysis") {
-                        // Reset analysis state before starting new analysis
-                        analysisViewModel.reset()
-                        appFlowViewModel.goToNextStep()
+                        Task { @MainActor in
+                            await analysisViewModel.reset()
+                            analysisViewModel.startAnalysis(
+                                fileImportViewModel: fileImportViewModel,
+                                model: selectedModel,
+                                additionalContext: additionalContext
+                            )
+                            appFlowViewModel.goToNextStep()
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(fileImportViewModel.selectedColumn == nil)
@@ -192,9 +204,19 @@ struct ColumnSelectionCard: View {
 }
 
 #Preview {
-    ColumnSelectionView(
+    let fileImportVM = FileImportViewModel()
+    fileImportVM.columns = ["Review", "User", "Date"]
+    fileImportVM.previewData = [
+        ["Great product!", "Alice", "2024-06-01"],
+        ["Not what I expected.", "Bob", "2024-06-02"],
+        ["Would buy again.", "Charlie", "2024-06-03"]
+    ]
+    fileImportVM.selectedColumn = "Review"
+    return ColumnSelectionView(
         appFlowViewModel: AppFlowViewModel(),
-        fileImportViewModel: FileImportViewModel(),
-        analysisViewModel: AnalysisViewModel()
+        fileImportViewModel: fileImportVM,
+        analysisViewModel: AnalysisViewModel(),
+        selectedModel: "gemma3:1b",
+        additionalContext: "Analyze the sentiment of the text in the selected column."
     )
 } 
