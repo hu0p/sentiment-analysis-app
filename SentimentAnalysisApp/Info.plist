@@ -32,6 +32,6 @@
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>SUFeedURL</key>
-	<string>https://hu0p.github.io/SentimentAnalysisApp/releases/appcast.xml</string>
+	<string>https://hu0p.github.io/sentiment-analysis-app/releases/appcast.xml</string>
 </dict>
 </plist>
