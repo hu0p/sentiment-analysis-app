@@ -76,7 +76,7 @@ class OllamaManager: ObservableObject {
                 }
             }
             print("[OllamaManager] Detected brew path: \(brewPath)")
-            if && !brewPath.isEmpty {
+            if !brewPath.isEmpty {
                 DispatchQueue.main.async {
                     self.statusMessage = "Brew environment detected!"
                     self.shouldPromptForBrewInstall = true
