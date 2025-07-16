@@ -226,6 +226,49 @@ else
   print_warning "Install create-dmg with: brew install create-dmg"
 fi
 
+# Load notarization credentials from .env.notarization if present
+if [ -f .env.notarization ]; then
+  print_status "Loading notarization credentials from .env.notarization..."
+  set -a
+  source .env.notarization
+  set +a
+else
+  print_warning ".env.notarization file not found. Notarization will be skipped."
+fi
+
+# After DMG creation and Sparkle signing, add notarization steps
+if [ -n "$NOTARIZE_APPLE_ID" ] && [ -n "$NOTARIZE_TEAM_ID" ] && [ -n "$NOTARIZE_PASSWORD" ]; then
+  APP_PATH="${EXPORT_PATH}/Sentiment Analyzer.app"
+  ZIP_PATH="${EXPORT_PATH}/SentimentAnalyzer.zip"
+
+  print_status "Zipping the app for notarization..."
+  ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
+
+  print_status "Submitting app for notarization..."
+  xcrun notarytool submit "$ZIP_PATH" \
+    --apple-id "$NOTARIZE_APPLE_ID" \
+    --team-id "$NOTARIZE_TEAM_ID" \
+    --password "$NOTARIZE_PASSWORD" \
+    --wait
+
+  print_status "Stapling the notarization ticket to the app..."
+  xcrun stapler staple "$APP_PATH"
+
+  # Notarize and staple the DMG as well, if distributing as DMG:
+  if [ -f "$DEST_DMG_PATH" ]; then
+    print_status "Submitting DMG for notarization..."
+    xcrun notarytool submit "$DEST_DMG_PATH" \
+      --apple-id "$NOTARIZE_APPLE_ID" \
+      --team-id "$NOTARIZE_TEAM_ID" \
+      --password "$NOTARIZE_PASSWORD" \
+      --wait
+    print_status "Stapling the notarization ticket to the DMG..."
+    xcrun stapler staple "$DEST_DMG_PATH"
+  fi
+else
+  print_warning "Notarization credentials not set. Skipping notarization."
+fi
+
 # Summary
 echo ""
 print_status "Build completed successfully!"
